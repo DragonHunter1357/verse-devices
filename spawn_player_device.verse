@@ -5,23 +5,16 @@ using { /Fortnite.com/Game }
 using { /UnrealEngine.com/Temporary/SpatialMath }
 using { /Verse.org/Simulation }
 
+RespawnLocation := enum{RoundEndLobby, GameEndLobby}
+
 spawn_player_device := class(creative_device):
     @editable GameStartLobbyTimer : timer_device = timer_device{}
-    @editable GameStartLobbySpawners : []player_spawner_device = array{}
+    
 
-    OnBegin<override>()<suspends>:void=
-        GameStartLobbyTimer.SuccessEvent.Subscribe(OnGameStartTimerComplete)
-
-
-    OnGameStartTimerComplete(Agent : ?agent):void=
-        for (Spawner : GameStartLobbySpawners):
-            Spawner.SpawnedEvent.Subscribe(OnPlayerSpawned)
-
-        DisableRespawns()
-
-    RespawnAllPlayers()<suspends>:void=
-        for (Spawner : GameStartLobbySpawners):
+    RespawnAllPlayers(Spawners : []player_spawner_device)<suspends>:void=
+        for (Spawner : Spawners):
             Spawner.Enable()
+            Spawner.SpawnedEvent.Subscribe(OnPlayerSpawned)
         TeamCollection := GetPlayspace().GetTeamCollection()
         Teams := TeamCollection.GetTeams()
         for (Index -> Team : Teams, Index <> 2): # Team 2 is the spectators
@@ -37,9 +30,32 @@ spawn_player_device := class(creative_device):
                         Instigator := option{Character}, 
                         Source := option{Character}})
 
+    RespawnPlayer(Spawner : player_spawner_device, Agent : agent)<suspends>:void=
+        Spawner.Enable()
+        Spawner.SpawnedEvent.Subscribe(OnPlayerSpawned)
+        Agent.Respawn(vector3{}, rotation{})
+        Sleep(0.01)
 
-    OnPlayerSpawned(Agent : agent):void=
-        Print("")
+        if(Character := Agent.GetFortCharacter[]):
+            Character.SetVulnerability(true)
+            Sleep(0.01)
+            Character.Damage(damage_args{
+                Amount := 999999999.0, 
+                Instigator := option{Character}, 
+                Source := option{Character}})
 
-    DisableRespawns():void=
+
+    OnPlayerSpawned(SomeAgent : agent):void=
+        var disableRespawn : logic = true
+
+        TeamCollection := GetPlayspace().GetTeamCollection()
+        Teams := TeamCollection.GetTeams()
+        for (Index -> Team : Teams, Index <> 2): # Team 2 is the spectators
+            for (Agent : TeamCollection.GetAgents[Team], not Agent.GetFortCharacter[].IsActive[]):
+                set disableRespawn = false
+
+        if(disableRespawn?):
+            DisableRespawns()
+
+    DisableRespawns(Spawners : []player_spawner_device):void=
         Print("")

@@ -7,7 +7,9 @@ using { /UnrealEngine.com/Temporary/Diagnostics }
 
 after_round_class := class<concrete>():
     @editable WinTeamTPs : []teleporter_device = array{}
+    @editable WinTeamSpawns : []player_spawner_device = array{}
     @editable LoseTeamTPs : []teleporter_device = array{}
+    @editable LoseTeamSpawn : []player_spawner_device = array{}
     @editable CinematicWinner : cinematic_sequence_device = cinematic_sequence_device{}
     @editable CinematicLoser : cinematic_sequence_device = cinematic_sequence_device{}
     @editable Hud_Controller : hud_controller_device = hud_controller_device{}
@@ -24,6 +26,7 @@ GameEndReason := enum {PLAYER_COUNT, WIN_CONDITION}
 
 game_round_device := class(creative_device):
     @editable GameStartTrigger : trigger_device = trigger_device{}
+    @editable RoundEndTrigger : trigger_device = trigger_device{}
     @editable EliminationManager : elimination_manager_device = elimination_manager_device{}
     @editable DownedManager : down_but_not_out_device  = down_but_not_out_device {}
     @editable HUD : hud_message_device = hud_message_device{}
@@ -176,6 +179,7 @@ game_round_device := class(creative_device):
             RoundEnd(TeamWithPlayers)
     
     RoundEnd(WinningTeam : team)<suspends>:void=
+        RoundEndTrigger.Trigger()
         Print("Round ended")
         TeamCollection := GetPlayspace().GetTeamCollection()
         TeamsArray := TeamCollection.GetTeams()
@@ -203,13 +207,13 @@ game_round_device := class(creative_device):
                 then:
                     AfterRoundLobby.CinematicWinner.Play(Agent)
                     spawn:
-                        RespawnPlayer(Agent, Teleporter)
+                        RespawnPlayer(Agent, Teleporter, RespawnLocation.RoundEndLobby)
                 else if:
                     Teleporter := AfterRoundLobby.LoseTeamTPs[Index]
                 then:
                     AfterRoundLobby.CinematicLoser.Play(Agent)
                     spawn:
-                        RespawnPlayer(Agent, Teleporter)
+                        RespawnPlayer(Agent, Teleporter, RespawnLocation.RoundEndLobby)
         Sleep(2.0)
         AfterRoundLobby.TimerToNextRound.Start()
         AfterRoundLobby.PauseNextRoundTimerSwitch.SetState(true)
@@ -237,9 +241,9 @@ game_round_device := class(creative_device):
                     Teleporter := AfterGameLobby.Teleporters[TeamIndex * 2 + Index]
                 then:
                     spawn:
-                        RespawnPlayer(Agent, Teleporter)
+                        RespawnPlayer(Agent, Teleporter, RespawnLocation.GameEndLobby)
     
-    RespawnPlayer(Agent : agent, Teleporter : teleporter_device)<suspends>:void=
+    RespawnPlayer(Agent : agent, Teleporter : teleporter_device, Location : RespawnLocation)<suspends>:void=
         Sleep(1.0)
         if:
             Agent.GetFortCharacter[].IsDownButNotOut[]
