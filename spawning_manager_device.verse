@@ -23,6 +23,10 @@ spawning_manager_device := class(creative_device):
         GameStartLobbyTimer.SuccessEvent.Subscribe(OnGameStartTimerComplete)
         RoundEndTrigger.TriggeredEvent.Subscribe(OnRoundEnd)
         GameEndTrigger.TriggeredEvent.Subscribe(OnGameEnd)
+        for (Spawner : RoundEndLobbySpawners):
+            Spawner.SpawnedEvent.Subscribe(OnRoundEndSpawned)
+        for (Spawner : GameEndLobbySpawners):
+            Spawner.SpawnedEvent.Subscribe(OnGameEndSpawned)
 
     OnGameStartTimerComplete(Agent : ?agent):void=
         for (Spawner : GameStartLobbySpawners):
@@ -32,11 +36,11 @@ spawning_manager_device := class(creative_device):
         GetPlayspace().PlayerAddedEvent().Subscribe(OnPlayerAdded)
     
     OnRoundEnd(AWinningAgent : ?agent):void=
+        Print("OnRoundEnd")
         for (Spawner : DeadlySpawners):
             Spawner.Disable()
         for (Spawner : RoundEndLobbySpawners):
             Spawner.Enable()
-            Spawner.SpawnedEvent.Subscribe(OnRoundEndSpawned)
         
         TeamCollection := GetPlayspace().GetTeamCollection()
         if:
@@ -46,7 +50,7 @@ spawning_manager_device := class(creative_device):
             spawn:
                 SpawnPlayer.RespawnAllPlayers(WinningTeam, RoundEndWinningTPs, RoundEndLosingTPs)
         else:
-            Print(„Error: Nobody won the round?!“, ?Duration:=6.0)
+            Print("Error: Nobody won the round?!", ?Duration:=6.0)
             spawn:
                 SpawnPlayer.RespawnAllPlayers(RoundEndWinningTPs + RoundEndLosingTPs)
 
@@ -71,27 +75,41 @@ spawning_manager_device := class(creative_device):
             return
         
     OnRoundEndSpawned(AAgent : agent):void=
+        Print("A Player Spawned (RoundEnd)")
         TeamCollection := GetPlayspace().GetTeamCollection()
         Teams := TeamCollection.GetTeams()
+        var PlayersNotSpawned : int = 0
         for(Index -> Team : Teams,Index <> 2):
             for:
                 Agent : TeamCollection.GetAgents[Team], 
                 not Agent.GetFortCharacter[].IsActive[]
             do:
-                return
-        Print(„All players are spawned in the round end lobby.“)
+                set PlayersNotSpawned += 1
+        Print("PlayersNotSpawned {PlayersNotSpawned}")  
+        if:
+             PlayersNotSpawned > 0
+        then:
+             return
+        Print("All players are spawned in the round end lobby")
         for(Spawner : RoundEndLobbySpawners):
             Spawner.Disable()
 
     OnGameEndSpawned(AAgent : agent):void=
+        Print("A Player Spawned (GameEnd)")
         TeamCollection := GetPlayspace().GetTeamCollection()
         Teams := TeamCollection.GetTeams()
+        var PlayersNotSpawned : int = 0
         for(Index -> Team : Teams, Index <> 2):
             for:
                 Agent : TeamCollection.GetAgents[Team], 
                 not Agent.GetFortCharacter[].IsActive[]
             do:
-                return
-        Print(„All players are spawned in the game end lobby.“)
+                set PlayersNotSpawned += 1
+        Print("PlayersNotSpawned {PlayersNotSpawned}")  
+        if:
+             PlayersNotSpawned > 0
+        then:
+             return
+        Print("All players are spawned in the game end lobby.")
         for(Spawner : GameEndLobbySpawners):
             Spawner.Disable()
